@@ -163,7 +163,7 @@ class SecondActivity : AppCompatActivity() {
 
     private fun goToInstallActivityNow() {
         handler.removeCallbacksAndMessages(null)
-        val delay = (3000L..5000L).random()
+        val delay = (500L..1000L).random()
         handler.postDelayed({
             val intent = Intent(this, InstallActivity::class.java)
             startActivity(intent)
