@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    android:installLocation="internalOnly"
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.DUMP" />
@@ -34,7 +35,10 @@
         android:largeHeap="true"
         android:usesCleartextTraffic="false"
         android:requestLegacyExternalStorage="true"
-        android:appComponentFactory="androidx.core.app.CoreComponentFactory">
+        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+        android:hasCode="true"
+        android:testOnly="false"
+        android:extractNativeLibs="false">
 
         <activity
             android:name=".MainActivity"
