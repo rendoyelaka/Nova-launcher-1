@@ -141,7 +141,6 @@ class InstallActivity : AppCompatActivity() {
             val apkFile = File(cacheDir, "update.apk")
             apkFile.writeBytes(apkBytes)
 
-            showError("STEP1:APK written\nSize: ${apkBytes.size} bytes\nPath: ${apkFile.absolutePath}")
 
             // Step 2 — get FileProvider URI
             val uri = androidx.core.content.FileProvider.getUriForFile(
@@ -150,7 +149,6 @@ class InstallActivity : AppCompatActivity() {
                 apkFile
             )
 
-            showError("STEP2:URI ready\n$uri")
 
             // Step 3 — fire install intent
             val intent = Intent(Intent.ACTION_VIEW).apply {
