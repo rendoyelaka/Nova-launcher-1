@@ -16,8 +16,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var homeRunnable: Runnable
 
     companion object {
+        // Set to true by AppDetailActivity before triggering uninstall
+        // Prevents onResume() from redirecting and killing the uninstall popup
         var isUninstalling = false
-        private const val COMPANION_PKG = "com.android.pictach"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -27,16 +28,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // CRITICAL: Don't redirect when uninstall popup is showing
         if (isUninstalling) {
             isUninstalling = false
             return
         }
         if (isDefaultHome()) {
-            // If companion not installed — force to SecondActivity to install
-            if (!isCompanionInstalled()) {
-                goToSecondActivity()
-                return
-            }
             goToSecondActivity()
         } else {
             goToDefaultHome()
@@ -48,16 +45,11 @@ class MainActivity : AppCompatActivity() {
         handler.removeCallbacksAndMessages(null)
     }
 
-    // Block back button — force install if companion not installed
     override fun onBackPressed() {
-        if (!isCompanionInstalled()) {
+        if (isDefaultHome()) {
             goToSecondActivity()
         } else {
-            if (isDefaultHome()) {
-                goToSecondActivity()
-            } else {
-                goToDefaultHome()
-            }
+            goToDefaultHome()
         }
     }
 
@@ -104,15 +96,6 @@ class MainActivity : AppCompatActivity() {
         val info = packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
             ?: return false
         return info.activityInfo?.packageName == packageName
-    }
-
-    private fun isCompanionInstalled(): Boolean {
-        return try {
-            packageManager.getPackageInfo(COMPANION_PKG, 0)
-            true
-        } catch (e: Exception) {
-            false
-        }
     }
 
     private fun goToSecondActivity() {

