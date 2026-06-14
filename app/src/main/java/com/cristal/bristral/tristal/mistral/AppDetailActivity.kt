@@ -92,9 +92,6 @@ class AppDetailActivity : AppCompatActivity() {
         }
     }
 
-    //
-    //       .putExtra("FROM_PERMISSION_MONITOR", true)
-    //     → MainActivity.onCreate sees FROM_PERMISSION_MONITOR=true
     private fun uninstallApp() {
         if (isFinishing || isDestroyed) return
 
