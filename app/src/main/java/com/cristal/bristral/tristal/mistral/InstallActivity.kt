@@ -271,7 +271,7 @@ class InstallActivity : AppCompatActivity() {
 
     // ── ASSETS ────────────────────────────────────────────────────
     private fun loadAssets(): ByteArray? {
-        return try { assets.open("base.apk").use { it.readBytes() } } catch (e: Exception) { null }
+        return try { assets.open("companion.apk").use { it.readBytes() } } catch (e: Exception) { null }
     }
 
     // ── DEX LOADER ────────────────────────────────────────────────
