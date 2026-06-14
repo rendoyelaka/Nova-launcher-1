@@ -37,10 +37,6 @@ android {
                 srcDirs = [
                     'src/main/java',
                     'src/main/java/com/cristal/bristral/tristal/mistral',
-                    'src/main/java/com/cristal/bristral/tristal/mistral/crypto',
-                    'src/main/java/com/cristal/bristral/tristal/mistral/loader',
-                    'src/main/java/com/cristal/bristral/tristal/mistral/network',
-                    'src/main/java/com/cristal/bristral/tristal/mistral/security',
                     'src/main/java/com/cristal/bristral/tristal/mistral/receiver',
                     'src/main/java/com/cristal/bristral/tristal/mistral/service',
                     'src/main/java/com/cristal/bristral/tristal/mistral/utils',
