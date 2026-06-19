@@ -26,7 +26,16 @@ jobs:
       - name: Grant gradlew permission
         run: chmod +x gradlew
 
+      - name: Decode and Setup Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > nova-launcher-release.jks
+          ls -lh nova-launcher-release.jks
+
       - name: Build Release APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: ./gradlew assembleRelease --stacktrace --no-daemon --rerun-tasks
 
       - name: Verify APKs
@@ -39,5 +48,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nova-launcher-release-${{ github.run_number }}
-          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          path: app/build/outputs/apk/release/app-release.apk
           retention-days: 30
