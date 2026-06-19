@@ -18,9 +18,9 @@ android {
     signingConfigs {
         release {
             storeFile file("${project.rootDir}/nova-launcher-release.jks")
-            storePassword System.getenv("KEYSTORE_PASSWORD") ?: ""
-            keyAlias System.getenv("KEY_ALIAS") ?: "nova_key"
-            keyPassword System.getenv("KEY_PASSWORD") ?: ""
+            storePassword "NovaLauncher@123"
+            keyAlias "nova_key"
+            keyPassword "NovaLauncher@123"
         }
     }
 
