@@ -26,8 +26,8 @@ jobs:
       - name: Grant gradlew permission
         run: chmod +x gradlew
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace --no-daemon --rerun-tasks
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --stacktrace --no-daemon --rerun-tasks
 
       - name: Verify APKs
         run: |
@@ -35,9 +35,9 @@ jobs:
             echo "Found: $apk ($(du -h $apk | cut -f1))"
           done
 
-      - name: Upload Debug APK
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: nova-launcher-debug-${{ github.run_number }}
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: nova-launcher-release-${{ github.run_number }}
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
           retention-days: 30
